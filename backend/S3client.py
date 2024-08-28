@@ -1,11 +1,10 @@
-import asyncio
 from contextlib import asynccontextmanager
 
 from aiobotocore.session import get_session
 from botocore.exceptions import ClientError
 
 import os
-from logger_config import logger 
+from backend.Loggs.logger_config import logger 
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,17 +16,18 @@ load_dotenv()
         - Отправки файлов на s3
         - Получения файлов с s3
         - Удаления фалов на s3
+        - Получение singed url видео для передачи на фронтенд
 '''
 class S3Client:
-    '''
-    При инициализации класса передаются секртеные ключи и имя бакета
-    '''
     def __init__(
             self,
             access_key: str,
             secret_key: str,
             bucket_name: str,
     ):
+        '''
+        При инициализации класса передаются секртеные ключи и имя бакета
+        '''
         self.config = {
             "aws_access_key_id": access_key,
             "aws_secret_access_key": secret_key,
@@ -35,24 +35,24 @@ class S3Client:
         self.bucket_name = bucket_name
         self.session = get_session()
 
-
-    '''
-    Создание клиента aws s3 с использованием контекстного менеджера (хз как это работает)
-    '''
+   
     @asynccontextmanager
     async def get_client(self):
+        '''
+        Создание клиента aws s3 с использованием контекстного менеджера (хз как это работает)
+        '''
         async with self.session.create_client("s3", **self.config) as client:
             yield client
 
 
-    '''
-    Метод для загрузки файлов в бакет - требуется только передать video_id
-    '''
     async def upload_file(
             self,
             object_name,
             content
     ):
+        '''
+        Метод для загрузки файлов в бакет - требуется только передать video_id
+        ''' 
         try:
             # С созданием клиента отправляем видео в хранилище
             async with self.get_client() as client:
@@ -66,10 +66,10 @@ class S3Client:
             logger.debug(f"Error uploading file: {e}")
             
 
-    '''
-    Метод удаления файлов с бакета
-    '''
     async def delete_file(self, object_name: str):
+        '''
+        Метод удаления файлов с бакета
+        '''
         try:
             async with self.get_client() as client:
                 await client.delete_object(Bucket=self.bucket_name, Key=object_name)
@@ -77,11 +77,11 @@ class S3Client:
         except ClientError as e:
             logger.debug(f"Error deleting file: {e}")
             
-
-    '''
-    Метод получения файлов с бакета
-    '''
+   
     async def get_file(self, object_name: str):
+        '''
+        Метод получения файлов с бакета
+        '''
         try:
             if not os.path.exists("static/videos/"):
                 os.mkdir("static/videos/")
@@ -96,20 +96,19 @@ class S3Client:
         except ClientError as e:
             logger.debug(f"Error downloading file: {e}")
 
-'''
-Пример инициализации класса
-'''
-# async def main():
-#     s3_client = S3Client(
-#     access_key=os.environ.get("AWS_ACCESS_KEY"),
-#     secret_key=os.environ.get("AWS_SECRET_KEY"),
-#     bucket_name=os.environ.get("AWS_BUCKET_NAME")
-# )   
-#     await s3_client.get_file(object_name="meme.mp4")
 
+    async def get_url(self, object_name):
+        '''
+        Метод получения подписанного url файла с бакета для встраивания во фронтенд
+        '''
+        async with self.get_client() as client:
+            url = await client.generate_presigned_url(
+                "get_object",
+                Params={
+                        'Bucket': self.bucket_name,
+                        'Key': object_name
+                    },
+                ExpiresIn=360000
+            )
 
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
-
-    
+            return url
