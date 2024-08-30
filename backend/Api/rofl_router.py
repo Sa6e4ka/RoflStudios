@@ -3,7 +3,7 @@ import os
 
 from backend.S3client import S3Client
 
-rofl_router_ = APIRouter()
+rofl_router_ = APIRouter(prefix="/api")
 
 s3_client = S3Client(
         access_key=os.environ.get("AWS_ACCESS_KEY"),

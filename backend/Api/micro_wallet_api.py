@@ -5,7 +5,7 @@ import requests
 import os
 
 load_dotenv()
-micro_router = APIRouter()
+micro_router = APIRouter(prefix="/api")
 
 API = os.environ.get("ETHERSCAN")
 
@@ -31,3 +31,16 @@ def transactions(address: str, index: int):
     return transactions
 
 
+@micro_router.get("/get_gas")
+def get_gas():
+    url = f"https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey={API}"
+
+    response = requests.get(url).json()
+
+    result = {
+        "SafeGasPrice":response['result']['SafeGasPrice'],
+        "ProposeGasPrice":response['result']['ProposeGasPrice'],
+        "FastGasPrice":response['result']['FastGasPrice']
+    }
+
+    return result
